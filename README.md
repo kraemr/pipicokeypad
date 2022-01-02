@@ -10,7 +10,7 @@ Set up your project to point to use the Raspberry Pi Pico SDK
 
 Either by cloning the SDK locally (most common) :
 
-git clone this Raspberry Pi Pico SDK repository
+`git clone https://github.com/raspberrypi/pico-sdk`
 
 Copy pico_sdk_import.cmake from the SDK into your project directory
 
