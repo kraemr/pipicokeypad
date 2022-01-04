@@ -47,16 +47,25 @@ enum  {
   BLINK_SUSPENDED = 2500,
 };
 static bool button_state = false;
-
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
-
 void led_blinking_task(void);
 void hid_task(void);
-
+const int gpioports[] = {10,11,12,13};
+bool buttonstates[] ={0,0,0,0};
+const int size = 3;
 /*------------- MAIN -------------*/
 int main(void)
-{    stdio_init_all();
-    gpio_pull_down(13);
+{ 
+  
+    stdio_init_all();
+    for(int i=0;i<3;i++)
+    {
+      sleep_ms(20);
+      board_led_write(1);
+      sleep_ms(20);
+            board_led_write(0);
+      gpio_pull_down(gpioports[i]);
+    }
   board_init();
   tusb_init();
 
@@ -64,29 +73,22 @@ int main(void)
   {
     hid_task();
     tud_task(); // tinyusb device task
-   // led_blinking_task();
-
   }
-
   return 0;
 }
-
 //--------------------------------------------------------------------+
 // Device callbacks
 //--------------------------------------------------------------------+
-
 // Invoked when device is mounted
 void tud_mount_cb(void)
 {
   blink_interval_ms = BLINK_MOUNTED;
 }
-
 // Invoked when device is unmounted
 void tud_umount_cb(void)
 {
   blink_interval_ms = BLINK_NOT_MOUNTED;
 }
-
 // Invoked when usb bus is suspended
 // remote_wakeup_en : if host allow us  to perform remote wakeup
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
@@ -95,63 +97,27 @@ void tud_suspend_cb(bool remote_wakeup_en)
   (void) remote_wakeup_en;
   blink_interval_ms = BLINK_SUSPENDED;
 }
-
 // Invoked when usb bus is resumed
 void tud_resume_cb(void)
 {
   blink_interval_ms = BLINK_MOUNTED;
 }
-uint32_t Get_Button()
+
+uint8_t gpioportsToKeycode(int index)
 {
-  if(!gpio_get(13))
+  switch(index)
   {
-    return 13;
+    case 10: return HID_KEY_A;break;
+    case 11:   return HID_KEY_W; ;break;
+    case 12:   return HID_KEY_S; ;break;
+    case 13:    return HID_KEY_D;break;
+    default:;break;
   }
-  else{return 0;}
 }
 
-//--------------------------------------------------------------------+
-// USB HID
-//--------------------------------------------------------------------+
 
-static void send_hid_report(uint8_t report_id, uint32_t btn)
-{
-  // skip if hid is not ready yet
-  if ( !tud_hid_ready() ) return;
-
-  switch(report_id)
-  {
-    case REPORT_ID_KEYBOARD:
-    {
-      // use to avoid send multiple consecutive zero report for keyboard
-      static bool has_keyboard_key = false;
-
-      if ( btn )
-      {
-        uint8_t keycode[6] = { 0 };
-        keycode[0] = HID_KEY_A;
-
-        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
-        has_keyboard_key = true;
-      }else
-      {
-        // send empty key report if previously has key pressed
-        if (has_keyboard_key) tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
-        has_keyboard_key = false;
-      }
-    }
-    break;
 /*
-    case REPORT_ID_MOUSE:
-    {
-      int8_t const delta = 5;
-
-      // no button, right + down, no scroll, no pan
-      tud_hid_mouse_report(REPORT_ID_MOUSE, 0x00, delta, delta, 0, 0);
-    }
-    break;
-
-    case REPORT_ID_CONSUMER_CONTROL:
+case REPORT_ID_CONSUMER_CONTROL:
     {
       // use to avoid send multiple consecutive zero report
       static bool has_consumer_key = false;
@@ -171,38 +137,7 @@ static void send_hid_report(uint8_t report_id, uint32_t btn)
       }
     }
     break;
-
-    case REPORT_ID_GAMEPAD:
-    {
-      // use to avoid send multiple consecutive zero report for keyboard
-      static bool has_gamepad_key = false;
-
-      hid_gamepad_report_t report =
-      {
-        .x   = 0, .y = 0, .z = 0, .rz = 0, .rx = 0, .ry = 0,
-        .hat = 0, .buttons = 0
-      };
-
-      if ( btn )
-      {
-        report.hat = GAMEPAD_HAT_UP;
-        report.buttons = GAMEPAD_BUTTON_A;
-        tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
-
-        has_gamepad_key = true;
-      }else
-      {
-        report.hat = GAMEPAD_HAT_CENTERED;
-        report.buttons = 0;
-        if (has_gamepad_key) tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
-        has_gamepad_key = false;
-      }
-    }
-    break;
 */
-    default: break;
-  }
-}
 // Every 10ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
 void hid_task(void)
@@ -210,56 +145,40 @@ void hid_task(void)
   // Poll every 10ms
   const uint32_t interval_ms = 10;
   static uint32_t start_ms = 0;
-
   if ( board_millis() - start_ms < interval_ms) return; // not enough time
   start_ms += interval_ms;
-
-
-     if (gpio_get(13)) { //If the button is pressed
+ for(int i=0;i<4;i++) // go through keys
+    {
+      if (gpio_get(gpioports[i])) { //If the button is pressed
             if (tud_suspended()) { //Wakeup if we are sleeping
                 tud_remote_wakeup();
             }
-            if (!button_state) { //If the button state was previously different
+            if (!buttonstates[i]) { //If the button state was previously different
                 printf("DEBUG: Button pressed!\n" );
                      board_led_write(1);
                if (tud_hid_ready()) {
                    uint8_t keycode[6] = {0,0,0,0,0,0};
-                   keycode[0] = HID_KEY_A;
+                   keycode[0] = gpioportsToKeycode(gpioports[i]);
                    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0 , keycode);
-                   button_state = true;
+                   buttonstates[i] = 1;
                    }
                }
-           }
-        
-        else { //If the button is depressed
-           if (button_state) { //If the button state was previously different
+           } 
+            else { //If the button is depressed
+              if (buttonstates[i]) { //If the button state was previously different
                if (tud_hid_ready()) {
-                                         board_led_write(0);
-                                    uint8_t keycode[6] = {0,0,0,0,0,0};
+                   board_led_write(0);
+                   uint8_t keycode[6] = {0,0,0,0,0,0};
                    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode); //Release Key
-                   button_state = false;
+                   buttonstates[i] = 0;
                }
-           }
+           }           
         }
+    }  
     }
 
 
 
-// Invoked when sent REPORT successfully to host
-// Application can use this to send the next report
-// Note: For composite reports, report[0] is report ID
-void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint8_t len)
-{
-  (void) instance;
-  (void) len;
-
-  uint8_t next_report_id = report[0] + 1;
-
-  if (next_report_id < REPORT_ID_COUNT)
-  {
-    send_hid_report(next_report_id, board_button_read());
-  }
-}
 
 // Invoked when received GET_REPORT control request
 // Application must fill buffer report's content and return its length.
