@@ -11,7 +11,6 @@
 
 
 static bool button_state = false;
-static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void hid_task(void);
 const int gpioports[] = {10,11,12,13};
