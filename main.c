@@ -9,20 +9,7 @@
 #include "pico/stdlib.h"
 #include "usb_descriptors.h"
 
-//--------------------------------------------------------------------+
-// MACRO CONSTANT TYPEDEF PROTYPES
-//--------------------------------------------------------------------+
 
-/* Blink pattern
- * - 250 ms  : device not mounted
- * - 1000 ms : device mounted
- * - 2500 ms : device is suspended
- */
-enum  {
-  BLINK_NOT_MOUNTED = 250,
-  BLINK_MOUNTED = 1000,
-  BLINK_SUSPENDED = 2500,
-};
 static bool button_state = false;
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
@@ -53,9 +40,7 @@ int main(void)
   }
   return 0;
 }
-//--------------------------------------------------------------------+
-// Device callbacks
-//--------------------------------------------------------------------+
+
 // Invoked when device is mounted
 void tud_mount_cb(void)
 {
@@ -80,20 +65,21 @@ void tud_resume_cb(void)
   blink_interval_ms = BLINK_MOUNTED;
 }
 
+
 uint8_t gpioportsToKeycode(int index)
 {
   switch(index)
   {
     case 10: return HID_KEY_A;break;
-    case 11:   return HID_KEY_W; ;break;
-    case 12:   return HID_KEY_S; ;break;
-    case 13:    return HID_KEY_D;break;
+    case 11: return HID_KEY_W;break;
+    case 12: return HID_KEY_S;break;
+    case 13: return HID_KEY_D;break;
     default:;break;
   }
 }
 
 
-/*
+/* This is a basic implementation of changing audio
 case REPORT_ID_CONSUMER_CONTROL:
     {
       // use to avoid send multiple consecutive zero report
@@ -185,20 +171,6 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
     {
       // bufsize should be (at least) 1
       if ( bufsize < 1 ) return;
-
-      uint8_t const kbd_leds = buffer[0];
-
-      if (kbd_leds & KEYBOARD_LED_CAPSLOCK)
-      {
-        // Capslock On: disable blink, turn led on
-        blink_interval_ms = 0;
-        board_led_write(true);
-      }else
-      {
-        // Caplocks Off: back to normal blink
-        board_led_write(false);
-        blink_interval_ms = BLINK_MOUNTED;
-      }
     }
   }
 }
