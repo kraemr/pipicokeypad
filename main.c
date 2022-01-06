@@ -16,7 +16,6 @@ void hid_task(void);
 const int gpioports[] = {10,11,12,13};
 bool buttonstates[] ={0,0,0,0};
 const int size = 3;
-/*------------- MAIN -------------*/
 int main(void)
 { 
   
