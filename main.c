@@ -1,5 +1,4 @@
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,9 +12,68 @@
 static bool button_state = false;
 void led_blinking_task(void);
 void hid_task(void);
-const int gpioports[] = {10,11,12,13};
+const int gpioports[] = {10,11,12,13,14,15}; // Only for standard keys
 bool buttonstates[] ={0,0,0,0};
 const int size = 3;
+
+
+   bool conkey_pressed[] = {0,0};
+
+void ctrl_task()
+{
+   const uint32_t interval_ms = 10;
+  static uint32_t start_ms = 0;
+  if ( board_millis() - start_ms < interval_ms) return; // not enough time
+  start_ms += interval_ms;
+  int index = 0;
+  uint16_t volume;
+  int pressedport=0;
+  for(int i=4;i<6;i++)
+  {
+    index = i - 4;
+  if ( gpio_get(gpioports[i]))
+      {
+        pressedport = gpioports[i];
+        if (tud_suspended()) { //Wakeup if we are sleeping
+                tud_remote_wakeup();
+            }
+              if(!conkey_pressed[index])
+              {
+                if(pressedport == 14)
+                {
+                  volume = HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+                  tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &volume, 2);
+                  conkey_pressed[index] = 1;
+                  board_led_write(1); 
+                }
+                if(pressedport == 15)
+                {
+                  volume = HID_USAGE_CONSUMER_VOLUME_INCREMENT;
+                  tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &volume, 2);
+                  conkey_pressed[index] = 1;
+                  board_led_write(1); 
+                }
+              }
+      }
+      else
+      {
+        // send empty key report (release key) if previously has key pressed
+        uint16_t empty_key = 0;
+        if (conkey_pressed[index]){
+            if (tud_hid_ready()) {
+         tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &empty_key, 2);
+                  conkey_pressed[index] = false;
+                  board_led_write(0);
+        }
+        }
+      } // else
+  } // for loop
+  
+
+}
+
+
+
 int main(void)
 { 
   
@@ -28,16 +86,22 @@ int main(void)
             board_led_write(0);
       gpio_pull_down(gpioports[i]);
     }
+    gpio_pull_down(14);
+    gpio_pull_down(15);
+
   board_init();
   tusb_init();
 
   while (1)
   {
     hid_task();
+    ctrl_task();
     tud_task(); // tinyusb device task
   }
   return 0;
 }
+ 
+    
 
 // Invoked when device is mounted
 void tud_mount_cb(void)
@@ -78,7 +142,6 @@ case REPORT_ID_CONSUMER_CONTROL:
     {
       // use to avoid send multiple consecutive zero report
       static bool has_consumer_key = false;
-
       if ( btn )
       {
         // volume down
