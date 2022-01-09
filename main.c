@@ -15,7 +15,10 @@ void hid_task(void);
 const int gpioports[] = {10,11,12,13,14,15}; // Only for standard keys
 bool buttonstates[] ={0,0,0,0};
 const int size = 3;
-
+#define SHIFT_MODIFIER 2
+#define CTRL_MODIFIER 1
+#define ALT_MODIFIER 4
+#define SUPER_MODIFIER 8
 
    bool conkey_pressed[] = {0,0};
 
@@ -167,7 +170,9 @@ void hid_task(void)
   static uint32_t start_ms = 0;
   if ( board_millis() - start_ms < interval_ms) return; // not enough time
   start_ms += interval_ms;
- for(int i=0;i<4;i++) // go through keys
+
+  int keymodifier=SHIFT_MODIFIER;
+  for(int i=0;i<4;i++) // go through keys
     {
       if (gpio_get(gpioports[i])) { //If the button is pressed
             if (tud_suspended()) { //Wakeup if we are sleeping
@@ -179,14 +184,14 @@ void hid_task(void)
                if (tud_hid_ready()) {
                    uint8_t keycode[6] = {0,0,0,0,0,0};
                    keycode[0] = gpioportsToKeycode(gpioports[i]);
-                   tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0 , keycode);
+                   tud_hid_keyboard_report(REPORT_ID_KEYBOARD, keymodifier , keycode); // The second spot indicates, if there are modifiers to the key sent
                    buttonstates[i] = 1;
                    }
                }
            } 
             else { //If the button is depressed
               if (buttonstates[i]) { //If the button state was previously different
-               if (tud_hid_ready()) {
+                if (tud_hid_ready()) {
                    board_led_write(0);
                    uint8_t keycode[6] = {0,0,0,0,0,0};
                    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode); //Release Key
