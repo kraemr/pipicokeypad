@@ -1,5 +1,9 @@
 # pipicokeypad
 
+What is this?
+
+Its just a small personal project where i used the pico sdk and the tusb-library to make the pi pico send keypresses over the usb-port whenever the corresponding buttons are pressed .
+
 How To Build On Linux:
 
 Install CMake (at least version 3.13), and GCC cross compiler
